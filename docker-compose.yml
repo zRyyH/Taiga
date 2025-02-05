@@ -8,16 +8,11 @@ services:
         environment:
             POSTGRES_DB: taiga
             POSTGRES_USER: taiga
-            POSTGRES_PASSWORD: "Taiga750*"
+            POSTGRES_PASSWORD: taiga_password
         volumes:
-            - ./taiga-db-data:/var/lib/postgresql/data
+            - taiga-db-data:/var/lib/postgresql/data
         networks:
             - taiga
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U taiga"]
-            interval: 30s
-            timeout: 10s
-            retries: 5
 
     taiga-backend:
         image: elestio/taiga-backend:latest
@@ -26,18 +21,20 @@ services:
         environment:
             POSTGRES_DB: taiga
             POSTGRES_USER: taiga
-            POSTGRES_PASSWORD: "Taiga750*"
+            POSTGRES_PASSWORD: taiga_password
             POSTGRES_HOST: taiga-db
-            TAIGA_SECRET_KEY: "Taiga750*"
-            TAIGA_SITES_SCHEME: "http"
-            TAIGA_SITES_DOMAIN: "localhost"
+            TAIGA_SECRET_KEY: taiga_secret_key
+            TAIGA_SITES_SCHEME: "https"
+            TAIGA_SITES_DOMAIN: taiga.awpsoft.com.br
+            EVENTS_PUSH_BACKEND: "taiga.events.backends.rabbitmq"
+            EVENTS_PUSH_BACKEND_URL: "amqp://taiga:taiga_password@taiga-rabbitmq:5672/"
             PUBLIC_REGISTER_ENABLED: "True"
         volumes:
-            - ./taiga-static-data:/taiga-back/static
-            - ./taiga-media-data:/taiga-back/media
+            - taiga-static-data:/taiga-back/static
+            - taiga-media-data:/taiga-back/media
         depends_on:
-            taiga-db:
-                condition: service_healthy
+            - taiga-db
+            - taiga-rabbitmq
         networks:
             - taiga
         ports:
@@ -48,7 +45,8 @@ services:
         container_name: taiga-frontend
         restart: always
         environment:
-            TAIGA_URL: "http://localhost:8000"
+            TAIGA_URL: "https://taiga.awpsoft.com.br"
+            TAIGA_WEBSOCKETS_URL: "wss://taiga.awpsoft.com.br"
             PUBLIC_REGISTER_ENABLED: "true"
         networks:
             - taiga
@@ -56,6 +54,21 @@ services:
             - taiga-backend
         ports:
             - "9000:80"
+
+    taiga-rabbitmq:
+        image: rabbitmq:3-management
+        container_name: taiga-rabbitmq
+        restart: always
+        environment:
+            RABBITMQ_DEFAULT_USER: taiga
+            RABBITMQ_DEFAULT_PASS: taiga_password
+        networks:
+            - taiga
+
+volumes:
+    taiga-db-data:
+    taiga-static-data:
+    taiga-media-data:
 
 networks:
     taiga:
